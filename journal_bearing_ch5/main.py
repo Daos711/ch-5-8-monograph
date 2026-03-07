@@ -6,10 +6,7 @@ from params import *
 from geometry import phi_1D, Z_1D, d_phi, d_Z, Phi_mesh, Z_mesh, H_smooth, H_textured
 from postproc import compute_load, compute_friction, compute_Qout
 
-try:
-    from reynolds_solver.api import solve_reynolds
-except ImportError:
-    from reynolds_solver_stub.api import solve_reynolds
+from reynolds_solver.api import solve_reynolds
 
 os.makedirs("plots", exist_ok=True)
 

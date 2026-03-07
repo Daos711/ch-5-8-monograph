@@ -2,10 +2,7 @@ import numpy as np
 from params import N_phi, N_Z, R, c, H_p, A_tex, B_tex
 from params import N_phi_tex, N_Z_tex, phi_start_deg, phi_end_deg
 
-try:
-    from reynolds_solver.utils import create_H_with_ellipsoidal_depressions
-except ImportError:
-    from reynolds_solver_stub.utils import create_H_with_ellipsoidal_depressions
+from reynolds_solver.utils import create_H_with_ellipsoidal_depressions
 
 # Сетка
 phi_1D = np.linspace(0, 2 * np.pi, N_phi)
