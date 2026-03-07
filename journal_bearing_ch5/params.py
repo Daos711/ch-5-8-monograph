@@ -1,46 +1,69 @@
 import numpy as np
 
 # --- Геометрия ---
-R   = 0.035       # радиус вала, м
-c   = 0.00005     # радиальный зазор, м
-L   = 0.056       # длина подшипника, м
+R   = 0.035
+c   = 0.00005
+L   = 0.056
 
 # --- Смазка ---
-eta = 0.01105     # динамическая вязкость, Па·с
+eta = 0.01105
 
 # --- Режим работы ---
 n_rpm  = 2980
-omega  = 2 * np.pi * n_rpm / 60   # угловая скорость, рад/с
-U      = omega * R                  # скорость поверхности вала, м/с
+omega  = 2 * np.pi * n_rpm / 60
+U      = omega * R
 
 # --- Сетка ---
 N_phi = 500
 N_Z   = 500
 
-# --- Параметры солвера ---
-SOR_OMEGA  = 1.5       # параметр SOR-релаксации (НЕ путать с omega)
-MAX_ITER   = 50000
-TOL        = 1e-5
+# --- Солвер ---
+SOR_W   = 1.5
+MAX_ITER    = 50000
+TOL         = 1e-5
 CHECK_EVERY = 500
 
 # --- Масштабирование ---
-pressure_scale = (6 * eta * U * R) / c**2    # Па
-load_scale     = pressure_scale * R * L / 2   # Н
-friction_scale = (eta * U * R * L) / c        # Н
+pressure_scale = (6 * eta * U * R) / c**2
+load_scale     = pressure_scale * R * L / 2
+friction_scale = (eta * U * R * L) / c
 
-# --- Параметры текстуры ---
-h_p   = 0.00001     # глубина лунки, м
-H_p   = h_p / c     # безразмерная глубина
+# --- Конфигурации текстуры ---
+# H_p            — безразмерная глубина (h_p / c)
+# A_tex          — безразмерная полуось по Z  (2*a / L,  т.к. Z ∈ [-1,1])
+# B_tex          — безразмерная полуось по φ  (b / R)
+# phi_start_deg, phi_end_deg — зона нанесения, градусы
+# N_phi_tex, N_Z_tex — число лунок по φ и Z
 
-a_dim = 0.00241     # полуось вдоль Z, м
-b_dim = 0.002214    # полуось вдоль φ, м
-A_tex = 2 * a_dim / L    # безразмерная полуось по Z
-B_tex = b_dim / R         # безразмерная полуось по φ
-
-N_phi_tex     = 8    # число лунок по φ
-N_Z_tex       = 11   # число лунок по Z
-phi_start_deg = 90   # начало зоны текстурирования
-phi_end_deg   = 270  # конец зоны текстурирования
+TEXTURE_CONFIGS = {
+    "T1": dict(
+        H_p=0.2,
+        A_tex=2 * 0.00241 / 0.056,
+        B_tex=0.002214 / 0.035,
+        phi_start_deg=90,
+        phi_end_deg=270,
+        N_phi_tex=8,
+        N_Z_tex=11,
+    ),
+    "T2": dict(
+        H_p=0.4,
+        A_tex=2 * 0.00241 / 0.056,
+        B_tex=0.002214 / 0.035,
+        phi_start_deg=90,
+        phi_end_deg=270,
+        N_phi_tex=8,
+        N_Z_tex=11,
+    ),
+    "T3": dict(
+        H_p=0.2,
+        A_tex=2 * 0.00241 / 0.056,
+        B_tex=0.002214 / 0.035,
+        phi_start_deg=0,
+        phi_end_deg=180,
+        N_phi_tex=8,
+        N_Z_tex=11,
+    ),
+}
 
 # --- Расчётные точки ---
 epsilon_nom    = 0.6
