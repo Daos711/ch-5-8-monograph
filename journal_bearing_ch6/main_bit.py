@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 
 from params_bit import (R, L, c, eta, omega_bit, R_bit, R_cone,
                         F_bit_radial, sigma_eq, TEXTURE_CONFIGS,
-                        SOR_W, TOL, MAX_ITER, CHECK_EVERY)
+                        SOR_W, TOL, MAX_ITER, CHECK_EVERY,
+                        WOB, k_load)
 from geometry_bit import (phi_1D, Z_1D, d_phi, d_Z, Phi_mesh, Z_mesh,
                           H_smooth, H_textured)
 from kinematics_bit import compute_U_eq
@@ -28,31 +29,47 @@ U_eq = compute_U_eq(omega_bit, R_bit, R_cone, R)
 print(f"U_eq = {U_eq:.4f} м/с")
 
 F_ext = F_bit_radial
-print(f"F_ext = {F_ext:.0f} Н (WOB/3)")
+print(f"F_ext = {F_ext:.0f} Н (k_load={k_load} × WOB/3 = {k_load}×{WOB/3:.0f})")
 
 # ── 1a. Предварительный расчёт F_max при eps=0.97 ────────────────────────────
-#    Быстрая проверка: что реально достижимо гидродинамически
-print("\n--- Определение F_max при ε=0.97 ---")
+print("\n=== Предельная грузоподъёмность (ε=0.97) ===")
 EPS_MAX = 0.97
 
 H_test = H_smooth(EPS_MAX)
 P_test, _, _ = solve_bit(H_test)
 F_max_smooth = compute_load_bit(P_test, phi_1D, Z_1D, U_eq)
-print(f"Гладкий:  F_max = {F_max_smooth:.0f} Н")
 
 F_max_configs = {}
+F_max_best_name = "Гладкий"
+F_max_best_val  = F_max_smooth
 for name, cfg in TEXTURE_CONFIGS.items():
     H_test = H_textured(EPS_MAX, cfg)
     P_test, _, _ = solve_bit(H_test)
     F_max_configs[name] = compute_load_bit(P_test, phi_1D, Z_1D, U_eq)
-    print(f"{name}:       F_max = {F_max_configs[name]:.0f} Н")
+    if F_max_configs[name] > F_max_best_val:
+        F_max_best_val = F_max_configs[name]
+        F_max_best_name = name
+
+# Вывод таблицы F_max
+max_mark = lambda n: " <- максимум" if n == F_max_best_name else ""
+print(f"  Гладкий:  F_max = {F_max_smooth:.0f} Н{max_mark('Гладкий')}")
+for name in TEXTURE_CONFIGS:
+    print(f"  {name}:       F_max = {F_max_configs[name]:.0f} Н{max_mark(name)}")
+
+# Научное наблюдение
+F_wob3 = WOB / 3
+print(f"\n  Примечание: при нагрузке WOB/3 = {F_wob3:.0f} Н чисто гидродинамическая")
+print(f"  постановка недостаточна (F_max,textured ~ {F_max_best_val:.0f} Н, что составляет")
+print(f"  около {F_max_best_val/F_wob3*100:.0f}% от грубой оценки WOB/3 = {F_wob3/1e3:.0f} кН).")
+print(f"  Поэтому расчёт рабочей точки ведётся не по WOB/3, а по сниженной")
+print(f"  нагрузке на цапфу: F_journal = k_load × WOB/3 = {F_ext:.0f} Н.")
+print(f"  Это физически ожидаемый результат для низкоскоростной опоры")
+print(f"  шарошечного долота (U_eq ~ {U_eq:.2f} м/с против ~10 м/с у насоса).")
 
 F_max_global = max(F_max_smooth, *F_max_configs.values())
-print(f"\nF_max (макс. из всех) = {F_max_global:.0f} Н")
 if F_max_global < F_ext:
-    print(f"⚠ F_ext={F_ext:.0f} Н > F_max={F_max_global:.0f} Н — "
-          f"чисто гидродинамическая постановка недостаточна.")
-    print(f"  Sweep будет адаптирован к диапазону [0, {F_max_global:.0f}] Н.")
+    print(f"\n  ⚠ F_ext={F_ext:.0f} Н > F_max={F_max_global:.0f} Н — ")
+    print(f"    sweep будет адаптирован к диапазону [0, {F_max_global:.0f}] Н.")
 
 # ── 2. Рабочие точки: гладкий + T1/T2/T3 ────────────────────────────────────
 print("\n--- Поиск рабочих точек ---")

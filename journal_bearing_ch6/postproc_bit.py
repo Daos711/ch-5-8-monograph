@@ -34,8 +34,9 @@ def compute_friction_bit(P, H, phi_1D, Z_1D, U_eq):
     d_phi = phi_1D[1] - phi_1D[0]
     dPdphi = np.zeros_like(P)
     dPdphi[:, 1:-1] = (P[:, 2:] - P[:, :-2]) / (2 * d_phi)
-    dPdphi[:, 0]    = (P[:, 1]  - P[:, -2])  / (2 * d_phi)
-    dPdphi[:, -1]   = dPdphi[:, 0]
+    # Периодичность при endpoint=False: phi[-1] + d_phi = phi[0] + 2π
+    dPdphi[:, 0]    = (P[:, 1]  - P[:, -1])  / (2 * d_phi)
+    dPdphi[:, -1]   = (P[:, 0]  - P[:, -2])  / (2 * d_phi)
     integrand = 1.0 / H + 3.0 * H * dPdphi
     f_nd = np.trapz(np.trapz(integrand, phi_1D, axis=1), Z_1D)
     return f_nd * friction_scale
