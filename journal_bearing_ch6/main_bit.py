@@ -189,51 +189,7 @@ if results:
     plt.tight_layout()
     save('fig_lambda_comparison')
 
-    # fig_PV_comparison
-    PV_vals = [results[n]["PV"] for n in names_plot]
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.bar(x, PV_vals, color=['b', 'r', 'g', 'm'][:len(names_plot)])
-    ax.set_xticks(x)
-    ax.set_xticklabels(names_plot)
-    ax.set_ylabel('PV, Па·м/с')
-    ax.grid(True, axis='y')
-    plt.tight_layout()
-    save('fig_PV_comparison')
 
-    # fig_wear_comparison
-    if "Гладкий" in results:
-        I_base = results["Гладкий"]["I_wear"]
-        I_norm = [results[n]["I_wear"] / I_base if I_base > 0 else 0 for n in names_plot]
-        fig, ax = plt.subplots(figsize=(7, 5))
-        ax.bar(x, I_norm, color=['b', 'r', 'g', 'm'][:len(names_plot)])
-        ax.axhline(1.0, color='k', linewidth=0.8, linestyle='--')
-        ax.set_xticks(x)
-        ax.set_xticklabels(names_plot)
-        ax.set_ylabel('I_wear / I_wear(гладкий)')
-        ax.grid(True, axis='y')
-        plt.tight_layout()
-        save('fig_wear_comparison')
-
-# --- fig_gains_bit: сводный барчарт G ---
-if gains:
-    g_names  = list(gains.keys())
-    G_keys   = ["G_hmin", "G_lambda", "G_PV", "G_wear"]
-    G_labels = ["$G_{h_{min}}$", "$G_{\\lambda}$", "$G_{PV}$", "$G_{wear}$"]
-    x_g = np.arange(len(g_names))
-    width = 0.18
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    for i, (gk, gl) in enumerate(zip(G_keys, G_labels)):
-        vals = [gains[n][gk] for n in g_names]
-        ax.bar(x_g + i * width, vals, width, label=gl)
-    ax.axhline(1.0, color='k', linewidth=0.8, linestyle='--')
-    ax.set_xticks(x_g + width * 1.5)
-    ax.set_xticklabels(g_names)
-    ax.set_ylabel('G')
-    ax.legend()
-    ax.grid(True, axis='y')
-    plt.tight_layout()
-    save('fig_gains_bit')
 
 # --- 3D поля давления ---
 Z_idx = np.argmin(np.abs(Z_1D))
@@ -252,8 +208,8 @@ def plot_3d(P, fname):
 
 if "Гладкий" in results:
     plot_3d(results["Гладкий"]["P"], 'fig_P3D_smooth_bit')
-if "T1" in results:
-    plot_3d(results["T1"]["P"], 'fig_P3D_T1_bit')
+if "T2" in results:
+    plot_3d(results["T2"]["P"], 'fig_P3D_T2_bit')
 
 # --- Карты кавитации ---
 
@@ -270,89 +226,8 @@ def plot_cav(P, fname):
 
 if "Гладкий" in results:
     plot_cav(results["Гладкий"]["P"], 'fig_cav_smooth_bit')
-if "T1" in results:
-    plot_cav(results["T1"]["P"], 'fig_cav_T1_bit')
 
-# ── 6. Sweep по нагрузке — адаптивный диапазон ──────────────────────────────
-# Диапазон sweep: от 10% до 90% от F_max гладкого
-F_sweep_hi = F_max_smooth * 0.90
-F_sweep_lo = F_max_smooth * 0.10
-N_sweep = 11
-
-if F_sweep_hi > F_sweep_lo:
-    F_ext_sweep = np.linspace(F_sweep_lo, F_sweep_hi, N_sweep)
-    F_ext_kN = F_ext_sweep / 1e3
-
-    eps_sweep_s, lam_sweep_s, hmin_sweep_s = [], [], []
-    eps_sweep_t1, lam_sweep_t1, hmin_sweep_t1 = [], [], []
-
-    print(f"\n=== Sweep по F_ext: {F_sweep_lo:.0f} – {F_sweep_hi:.0f} Н ({N_sweep} точек) ===")
-    for i, F_e in enumerate(F_ext_sweep):
-        print(f"  [{i+1}/{N_sweep}] F={F_e:.0f} Н ...", end=" ", flush=True)
-        # Гладкий
-        try:
-            eps, _, _ = find_operating_point(F_e, texture_cfg=None)
-            eps_sweep_s.append(eps)
-            lam_sweep_s.append(compute_lambda(eps))
-            hmin_sweep_s.append(compute_h_min(eps) * 1e6)
-            print(f"гладкий ε={eps:.4f}", end=" ")
-        except ValueError:
-            eps_sweep_s.append(np.nan)
-            lam_sweep_s.append(np.nan)
-            hmin_sweep_s.append(np.nan)
-            print("гладкий: N/A", end=" ")
-
-        # T1
-        try:
-            eps, _, _ = find_operating_point(F_e, texture_cfg=TEXTURE_CONFIGS["T1"])
-            eps_sweep_t1.append(eps)
-            lam_sweep_t1.append(compute_lambda(eps))
-            hmin_sweep_t1.append(compute_h_min(eps) * 1e6)
-            print(f"T1 ε={eps:.4f}")
-        except ValueError:
-            eps_sweep_t1.append(np.nan)
-            lam_sweep_t1.append(np.nan)
-            hmin_sweep_t1.append(np.nan)
-            print("T1: N/A")
-
-    # fig_sweep_epsilon (Sweep A)
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(F_ext_kN, eps_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
-    ax.plot(F_ext_kN, eps_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
-    ax.set_xlabel('F_ext, кН')
-    ax.set_ylabel('ε')
-    ax.legend()
-    ax.grid(True)
-    plt.tight_layout()
-    save('fig_sweep_epsilon')
-
-    # fig_sweep_lambda (Sweep A)
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(F_ext_kN, lam_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
-    ax.plot(F_ext_kN, lam_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
-    ax.axhline(1.0, color='orange', linewidth=0.8, linestyle='--')
-    ax.axhline(3.0, color='green',  linewidth=0.8, linestyle='--')
-    ax.set_xlabel('F_ext, кН')
-    ax.set_ylabel('λ')
-    ax.legend()
-    ax.grid(True)
-    plt.tight_layout()
-    save('fig_sweep_lambda')
-
-    # fig_sweep_hmin (Sweep A)
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(F_ext_kN, hmin_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
-    ax.plot(F_ext_kN, hmin_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
-    ax.set_xlabel('F_ext, кН')
-    ax.set_ylabel('h_min, мкм')
-    ax.legend()
-    ax.grid(True)
-    plt.tight_layout()
-    save('fig_sweep_hmin')
-else:
-    print("\n⚠ F(ε = 0.97) слишком мал для sweep — графики Sweep A пропущены.")
-
-# ── 6b. Sweep B — рабочая зона текстур (T1/T2/T3) ─────────────────────────
+# ── 6. Sweep B — рабочая зона текстур (T1/T2/T3) ─────────────────────────
 F_sweep_B_lo = F_max_smooth * 1.1
 F_sweep_B_hi = F_max_best_val * 0.9
 N_sweep_B = 11
@@ -395,7 +270,6 @@ if F_sweep_B_hi > F_sweep_B_lo:
                 linewidth=1.5, markersize=5, label=lbl)
     ax.set_xlabel('F_ext, кН')
     ax.set_ylabel('ε')
-    ax.set_title('Sweep B — рабочая зона текстур')
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
@@ -411,7 +285,6 @@ if F_sweep_B_hi > F_sweep_B_lo:
     ax.axhline(3.0, color='green',  linewidth=0.8, linestyle='--', label='λ = 3')
     ax.set_xlabel('F_ext, кН')
     ax.set_ylabel('λ')
-    ax.set_title('Sweep B — рабочая зона текстур')
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
@@ -425,7 +298,6 @@ if F_sweep_B_hi > F_sweep_B_lo:
                 linewidth=1.5, markersize=5, label=lbl)
     ax.set_xlabel('F_ext, кН')
     ax.set_ylabel('h_min, мкм')
-    ax.set_title('Sweep B — рабочая зона текстур')
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
@@ -479,28 +351,9 @@ if gains_common:
     ax.set_xticks(x_g + width * 1.5)
     ax.set_xticklabels(g_names)
     ax.set_ylabel('G')
-    ax.set_title(f'Коэффициенты улучшения при F = {F_common:.0f} Н')
     ax.legend()
     ax.grid(True, axis='y')
     plt.tight_layout()
     save('fig_gains_common')
-
-    # fig_wear_common
-    if "Гладкий" in results_common:
-        I_base = results_common["Гладкий"]["I_wear"]
-        names_wc = list(results_common.keys())
-        I_norm_c = [results_common[n]["I_wear"] / I_base if I_base > 0 else 0
-                     for n in names_wc]
-        x_wc = np.arange(len(names_wc))
-        fig, ax = plt.subplots(figsize=(7, 5))
-        ax.bar(x_wc, I_norm_c, color=['b', 'r', 'g', 'm'][:len(names_wc)])
-        ax.axhline(1.0, color='k', linewidth=0.8, linestyle='--')
-        ax.set_xticks(x_wc)
-        ax.set_xticklabels(names_wc)
-        ax.set_ylabel('I_wear / I_wear(гладкий)')
-        ax.set_title(f'Износ при F = {F_common:.0f} Н')
-        ax.grid(True, axis='y')
-        plt.tight_layout()
-        save('fig_wear_common')
 
 print("\nГотово. Графики сохранены в plots/")
