@@ -30,7 +30,32 @@ print(f"U_eq = {U_eq:.4f} м/с")
 F_ext = F_bit_radial
 print(f"F_ext = {F_ext:.0f} Н (WOB/3)")
 
+# ── 1a. Предварительный расчёт F_max при eps=0.97 ────────────────────────────
+#    Быстрая проверка: что реально достижимо гидродинамически
+print("\n--- Определение F_max при ε=0.97 ---")
+EPS_MAX = 0.97
+
+H_test = H_smooth(EPS_MAX)
+P_test, _, _ = solve_bit(H_test)
+F_max_smooth = compute_load_bit(P_test, phi_1D, Z_1D, U_eq)
+print(f"Гладкий:  F_max = {F_max_smooth:.0f} Н")
+
+F_max_configs = {}
+for name, cfg in TEXTURE_CONFIGS.items():
+    H_test = H_textured(EPS_MAX, cfg)
+    P_test, _, _ = solve_bit(H_test)
+    F_max_configs[name] = compute_load_bit(P_test, phi_1D, Z_1D, U_eq)
+    print(f"{name}:       F_max = {F_max_configs[name]:.0f} Н")
+
+F_max_global = max(F_max_smooth, *F_max_configs.values())
+print(f"\nF_max (макс. из всех) = {F_max_global:.0f} Н")
+if F_max_global < F_ext:
+    print(f"⚠ F_ext={F_ext:.0f} Н > F_max={F_max_global:.0f} Н — "
+          f"чисто гидродинамическая постановка недостаточна.")
+    print(f"  Sweep будет адаптирован к диапазону [0, {F_max_global:.0f}] Н.")
+
 # ── 2. Рабочие точки: гладкий + T1/T2/T3 ────────────────────────────────────
+print("\n--- Поиск рабочих точек ---")
 results = {}
 
 # Гладкий
@@ -92,43 +117,22 @@ STYLES = {
 }
 
 # --- fig_operating_points: F(epsilon) кривые + F_ext линия + маркеры ---
-eps_scan = np.linspace(0.05, 0.97, 40)
+print("\n--- Построение F(ε) кривых (20 точек × 4 конфигурации) ---")
+eps_scan = np.linspace(0.05, 0.97, 20)
 
 fig, ax = plt.subplots(figsize=(8, 5))
-# Гладкий F(ε)
-F_scan_s = []
-for eps in eps_scan:
-    H_e = H_smooth(eps)
-    P_e, _, _ = solve_bit(H_e)
-    F_scan_s.append(compute_load_bit(P_e, phi_1D, Z_1D, U_eq))
-ax.plot(eps_scan, F_scan_s, 'b-', linewidth=1.5, label='Гладкий')
 
-# T1 F(ε)
-cfg_T1 = TEXTURE_CONFIGS["T1"]
-F_scan_t1 = []
-for eps in eps_scan:
-    H_e = H_textured(eps, cfg_T1)
-    P_e, _, _ = solve_bit(H_e)
-    F_scan_t1.append(compute_load_bit(P_e, phi_1D, Z_1D, U_eq))
-ax.plot(eps_scan, F_scan_t1, 'r--', linewidth=1.5, label='T1')
-
-# T2 F(ε)
-cfg_T2 = TEXTURE_CONFIGS["T2"]
-F_scan_t2 = []
-for eps in eps_scan:
-    H_e = H_textured(eps, cfg_T2)
-    P_e, _, _ = solve_bit(H_e)
-    F_scan_t2.append(compute_load_bit(P_e, phi_1D, Z_1D, U_eq))
-ax.plot(eps_scan, F_scan_t2, 'g-.', linewidth=1.5, label='T2')
-
-# T3 F(ε)
-cfg_T3 = TEXTURE_CONFIGS["T3"]
-F_scan_t3 = []
-for eps in eps_scan:
-    H_e = H_textured(eps, cfg_T3)
-    P_e, _, _ = solve_bit(H_e)
-    F_scan_t3.append(compute_load_bit(P_e, phi_1D, Z_1D, U_eq))
-ax.plot(eps_scan, F_scan_t3, 'm:', linewidth=1.5, label='T3')
+# Scan для каждой конфигурации
+scan_configs = [("Гладкий", None)] + [(n, c) for n, c in TEXTURE_CONFIGS.items()]
+for cfg_name, cfg in scan_configs:
+    F_scan = []
+    for i, eps in enumerate(eps_scan):
+        H_e = H_smooth(eps) if cfg is None else H_textured(eps, cfg)
+        P_e, _, _ = solve_bit(H_e)
+        F_scan.append(compute_load_bit(P_e, phi_1D, Z_1D, U_eq))
+    ls, mk, lbl = STYLES[cfg_name]
+    ax.plot(eps_scan, F_scan, ls, linewidth=1.5, label=lbl)
+    print(f"  {cfg_name}: F_max(scan) = {max(F_scan):.0f} Н")
 
 ax.axhline(F_ext, color='k', linewidth=0.8, linestyle='--', label=f'F_ext={F_ext/1e3:.0f} кН')
 
@@ -144,18 +148,17 @@ ax.grid(True)
 plt.tight_layout()
 save('fig_operating_points')
 
-# --- fig_lambda_comparison: барчарт lambda ---
+# --- Барчарты (только если есть результаты) ---
 if results:
     names_plot = [n for n in results]
-    lam_vals   = [results[n]["lam"] for n in names_plot]
-
-    fig, ax = plt.subplots(figsize=(7, 5))
     x = np.arange(len(names_plot))
+
+    # fig_lambda_comparison
+    lam_vals = [results[n]["lam"] for n in names_plot]
+    fig, ax = plt.subplots(figsize=(7, 5))
     ax.bar(x, lam_vals, color=['b', 'r', 'g', 'm'][:len(names_plot)])
     ax.axhline(1.0, color='orange', linewidth=1.2, linestyle='--')
     ax.axhline(3.0, color='green',  linewidth=1.2, linestyle='--')
-    # Подписи зон
-    y_max = max(lam_vals) * 1.15 if lam_vals else 10
     ax.text(len(names_plot)-0.5, 0.5, 'граничный', fontsize=9, color='orange', ha='right')
     ax.text(len(names_plot)-0.5, 2.0, 'смешанный', fontsize=9, color='green', ha='right')
     ax.text(len(names_plot)-0.5, 3.5, 'гидродинамический', fontsize=9, color='green', ha='right')
@@ -166,8 +169,7 @@ if results:
     plt.tight_layout()
     save('fig_lambda_comparison')
 
-# --- fig_PV_comparison: барчарт PV ---
-if results:
+    # fig_PV_comparison
     PV_vals = [results[n]["PV"] for n in names_plot]
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.bar(x, PV_vals, color=['b', 'r', 'g', 'm'][:len(names_plot)])
@@ -178,19 +180,19 @@ if results:
     plt.tight_layout()
     save('fig_PV_comparison')
 
-# --- fig_wear_comparison: барчарт I_wear нормированный ---
-if results and "Гладкий" in results:
-    I_base = results["Гладкий"]["I_wear"]
-    I_norm = [results[n]["I_wear"] / I_base if I_base > 0 else 0 for n in names_plot]
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.bar(x, I_norm, color=['b', 'r', 'g', 'm'][:len(names_plot)])
-    ax.axhline(1.0, color='k', linewidth=0.8, linestyle='--')
-    ax.set_xticks(x)
-    ax.set_xticklabels(names_plot)
-    ax.set_ylabel('I_wear / I_wear(гладкий)')
-    ax.grid(True, axis='y')
-    plt.tight_layout()
-    save('fig_wear_comparison')
+    # fig_wear_comparison
+    if "Гладкий" in results:
+        I_base = results["Гладкий"]["I_wear"]
+        I_norm = [results[n]["I_wear"] / I_base if I_base > 0 else 0 for n in names_plot]
+        fig, ax = plt.subplots(figsize=(7, 5))
+        ax.bar(x, I_norm, color=['b', 'r', 'g', 'm'][:len(names_plot)])
+        ax.axhline(1.0, color='k', linewidth=0.8, linestyle='--')
+        ax.set_xticks(x)
+        ax.set_xticklabels(names_plot)
+        ax.set_ylabel('I_wear / I_wear(гладкий)')
+        ax.grid(True, axis='y')
+        plt.tight_layout()
+        save('fig_wear_comparison')
 
 # --- fig_gains_bit: сводный барчарт G ---
 if gains:
@@ -216,6 +218,7 @@ if gains:
 # --- 3D поля давления ---
 Z_idx = np.argmin(np.abs(Z_1D))
 
+
 def plot_3d(P, fname):
     fig = plt.figure(figsize=(9, 6))
     ax = fig.add_subplot(111, projection='3d')
@@ -226,12 +229,15 @@ def plot_3d(P, fname):
     plt.tight_layout()
     save(fname)
 
+
 if "Гладкий" in results:
     plot_3d(results["Гладкий"]["P"], 'fig_P3D_smooth_bit')
 if "T1" in results:
     plot_3d(results["T1"]["P"], 'fig_P3D_T1_bit')
 
 # --- Карты кавитации ---
+
+
 def plot_cav(P, fname):
     cav = (P <= 0).astype(float)
     fig, ax = plt.subplots(figsize=(8, 4))
@@ -241,80 +247,89 @@ def plot_cav(P, fname):
     plt.tight_layout()
     save(fname)
 
+
 if "Гладкий" in results:
     plot_cav(results["Гладкий"]["P"], 'fig_cav_smooth_bit')
 if "T1" in results:
     plot_cav(results["T1"]["P"], 'fig_cav_T1_bit')
 
-# ── 6. Sweep по нагрузке: F_ext от 20 до 70 кН ─────────────────────────────
-F_ext_sweep = np.linspace(20e3, 70e3, 11)
+# ── 6. Sweep по нагрузке — адаптивный диапазон ──────────────────────────────
+# Диапазон sweep: от 10% до 90% от F_max гладкого
+F_sweep_hi = F_max_smooth * 0.90
+F_sweep_lo = F_max_smooth * 0.10
+N_sweep = 11
 
-eps_sweep_s, lam_sweep_s, hmin_sweep_s = [], [], []
-eps_sweep_t1, lam_sweep_t1, hmin_sweep_t1 = [], [], []
+if F_sweep_hi > F_sweep_lo:
+    F_ext_sweep = np.linspace(F_sweep_lo, F_sweep_hi, N_sweep)
+    F_ext_kN = F_ext_sweep / 1e3
 
-print("\n=== Sweep по F_ext ===")
-for F_e in F_ext_sweep:
-    # Гладкий
-    try:
-        eps, _, _ = find_operating_point(F_e, texture_cfg=None)
-        eps_sweep_s.append(eps)
-        lam_sweep_s.append(compute_lambda(eps))
-        hmin_sweep_s.append(compute_h_min(eps) * 1e6)
-        print(f"  F={F_e/1e3:.0f} кН: гладкий ε={eps:.4f}, "
-              f"λ={compute_lambda(eps):.2f}")
-    except ValueError as e:
-        eps_sweep_s.append(np.nan)
-        lam_sweep_s.append(np.nan)
-        hmin_sweep_s.append(np.nan)
-        print(f"  F={F_e/1e3:.0f} кН: гладкий — {e}")
+    eps_sweep_s, lam_sweep_s, hmin_sweep_s = [], [], []
+    eps_sweep_t1, lam_sweep_t1, hmin_sweep_t1 = [], [], []
 
-    # T1
-    try:
-        eps, _, _ = find_operating_point(F_e, texture_cfg=TEXTURE_CONFIGS["T1"])
-        eps_sweep_t1.append(eps)
-        lam_sweep_t1.append(compute_lambda(eps))
-        hmin_sweep_t1.append(compute_h_min(eps) * 1e6)
-    except ValueError as e:
-        eps_sweep_t1.append(np.nan)
-        lam_sweep_t1.append(np.nan)
-        hmin_sweep_t1.append(np.nan)
-        print(f"  F={F_e/1e3:.0f} кН: T1 — {e}")
+    print(f"\n=== Sweep по F_ext: {F_sweep_lo:.0f} – {F_sweep_hi:.0f} Н ({N_sweep} точек) ===")
+    for i, F_e in enumerate(F_ext_sweep):
+        print(f"  [{i+1}/{N_sweep}] F={F_e:.0f} Н ...", end=" ", flush=True)
+        # Гладкий
+        try:
+            eps, _, _ = find_operating_point(F_e, texture_cfg=None)
+            eps_sweep_s.append(eps)
+            lam_sweep_s.append(compute_lambda(eps))
+            hmin_sweep_s.append(compute_h_min(eps) * 1e6)
+            print(f"гладкий ε={eps:.4f}", end=" ")
+        except ValueError:
+            eps_sweep_s.append(np.nan)
+            lam_sweep_s.append(np.nan)
+            hmin_sweep_s.append(np.nan)
+            print("гладкий: N/A", end=" ")
 
-F_ext_kN = F_ext_sweep / 1e3
+        # T1
+        try:
+            eps, _, _ = find_operating_point(F_e, texture_cfg=TEXTURE_CONFIGS["T1"])
+            eps_sweep_t1.append(eps)
+            lam_sweep_t1.append(compute_lambda(eps))
+            hmin_sweep_t1.append(compute_h_min(eps) * 1e6)
+            print(f"T1 ε={eps:.4f}")
+        except ValueError:
+            eps_sweep_t1.append(np.nan)
+            lam_sweep_t1.append(np.nan)
+            hmin_sweep_t1.append(np.nan)
+            print("T1: N/A")
 
-# fig_sweep_epsilon
-fig, ax = plt.subplots(figsize=(7, 5))
-ax.plot(F_ext_kN, eps_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
-ax.plot(F_ext_kN, eps_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
-ax.set_xlabel('F_ext, кН')
-ax.set_ylabel('ε')
-ax.legend()
-ax.grid(True)
-plt.tight_layout()
-save('fig_sweep_epsilon')
+    # fig_sweep_epsilon
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(F_ext_kN, eps_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
+    ax.plot(F_ext_kN, eps_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
+    ax.set_xlabel('F_ext, кН')
+    ax.set_ylabel('ε')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    save('fig_sweep_epsilon')
 
-# fig_sweep_lambda
-fig, ax = plt.subplots(figsize=(7, 5))
-ax.plot(F_ext_kN, lam_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
-ax.plot(F_ext_kN, lam_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
-ax.axhline(1.0, color='orange', linewidth=0.8, linestyle='--')
-ax.axhline(3.0, color='green',  linewidth=0.8, linestyle='--')
-ax.set_xlabel('F_ext, кН')
-ax.set_ylabel('λ')
-ax.legend()
-ax.grid(True)
-plt.tight_layout()
-save('fig_sweep_lambda')
+    # fig_sweep_lambda
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(F_ext_kN, lam_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
+    ax.plot(F_ext_kN, lam_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
+    ax.axhline(1.0, color='orange', linewidth=0.8, linestyle='--')
+    ax.axhline(3.0, color='green',  linewidth=0.8, linestyle='--')
+    ax.set_xlabel('F_ext, кН')
+    ax.set_ylabel('λ')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    save('fig_sweep_lambda')
 
-# fig_sweep_hmin
-fig, ax = plt.subplots(figsize=(7, 5))
-ax.plot(F_ext_kN, hmin_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
-ax.plot(F_ext_kN, hmin_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
-ax.set_xlabel('F_ext, кН')
-ax.set_ylabel('h_min, мкм')
-ax.legend()
-ax.grid(True)
-plt.tight_layout()
-save('fig_sweep_hmin')
+    # fig_sweep_hmin
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(F_ext_kN, hmin_sweep_s,  'bo-', linewidth=1.5, markersize=5, label='Гладкий')
+    ax.plot(F_ext_kN, hmin_sweep_t1, 'rs-', linewidth=1.5, markersize=5, label='T1')
+    ax.set_xlabel('F_ext, кН')
+    ax.set_ylabel('h_min, мкм')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    save('fig_sweep_hmin')
+else:
+    print("\n⚠ F_max слишком мал для sweep — графики sweep пропущены.")
 
 print("\nГотово. Графики сохранены в plots/")
