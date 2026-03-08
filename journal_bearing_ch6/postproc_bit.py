@@ -20,8 +20,10 @@ def compute_load_bit(P, phi_1D, Z_1D, U_eq):
     """
     _, load_scale, _ = make_scales(U_eq)
     Phi_m = np.meshgrid(phi_1D, Z_1D)[0]  # shape (N_Z, N_phi)
-    Fx_nd = np.trapz(np.trapz(P * np.cos(Phi_m), phi_1D, axis=1), Z_1D)
-    Fy_nd = np.trapz(np.trapz(P * np.sin(Phi_m), phi_1D, axis=1), Z_1D)
+    d_phi = phi_1D[1] - phi_1D[0]
+    d_Z   = Z_1D[1]   - Z_1D[0]
+    Fx_nd = np.sum(P * np.cos(Phi_m)) * d_phi * d_Z
+    Fy_nd = np.sum(P * np.sin(Phi_m)) * d_phi * d_Z
     return np.sqrt(Fx_nd**2 + Fy_nd**2) * load_scale
 
 
@@ -38,15 +40,18 @@ def compute_friction_bit(P, H, phi_1D, Z_1D, U_eq):
     dPdphi[:, 0]    = (P[:, 1]  - P[:, -1])  / (2 * d_phi)
     dPdphi[:, -1]   = (P[:, 0]  - P[:, -2])  / (2 * d_phi)
     integrand = 1.0 / H + 3.0 * H * dPdphi
-    f_nd = np.trapz(np.trapz(integrand, phi_1D, axis=1), Z_1D)
+    d_Z  = Z_1D[1] - Z_1D[0]
+    f_nd = np.sum(integrand) * d_phi * d_Z
     return f_nd * friction_scale
 
 
 def compute_phi_load_bit(P, phi_1D, Z_1D):
     """Угол нагружения, градусы."""
     Phi_m = np.meshgrid(phi_1D, Z_1D)[0]
-    Fx_nd = np.trapz(np.trapz(P * np.cos(Phi_m), phi_1D, axis=1), Z_1D)
-    Fy_nd = np.trapz(np.trapz(P * np.sin(Phi_m), phi_1D, axis=1), Z_1D)
+    d_phi = phi_1D[1] - phi_1D[0]
+    d_Z   = Z_1D[1]   - Z_1D[0]
+    Fx_nd = np.sum(P * np.cos(Phi_m)) * d_phi * d_Z
+    Fy_nd = np.sum(P * np.sin(Phi_m)) * d_phi * d_Z
     phi = np.degrees(np.arctan2(Fy_nd, Fx_nd))
     return (phi + 360) % 360
 
