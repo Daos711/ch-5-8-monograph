@@ -9,7 +9,7 @@ from params_thrust import (
     R_in, R_out, N_pads, beta, h_out, K_nom,
     mu, omega, n_rpm, N_r, N_theta,
     SOR_W, MAX_ITER, TOL, CHECK_EVERY,
-    K_values, TEXTURE_CONFIGS,
+    K_values, TEXTURE_CONFIGS, DRAFT,
 )
 from geometry_thrust import (
     r_1D, theta_1D, R_mesh, Theta_mesh,
@@ -22,6 +22,11 @@ from postproc_thrust import (
 )
 
 os.makedirs("plots", exist_ok=True)
+
+if DRAFT:
+    print(f"*** DRAFT-режим: сетка {N_r}×{N_theta} (быстрая проверка) ***\n")
+else:
+    print(f"*** FINAL-режим: сетка {N_r}×{N_theta} ***\n")
 
 # ============================================================
 # Вспомогательная функция

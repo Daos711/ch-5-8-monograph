@@ -1,4 +1,8 @@
+import sys
 import numpy as np
+
+# --- Режим расчёта ---
+DRAFT = "--draft" in sys.argv
 
 # --- Геометрия ---
 R_in   = 0.030       # м
@@ -18,8 +22,12 @@ n_rpm  = 3000
 omega  = 2 * np.pi * n_rpm / 60   # рад/с
 
 # --- Сетка ---
-N_r     = 200
-N_theta = 300
+if DRAFT:
+    N_r     = 50
+    N_theta = 75
+else:
+    N_r     = 200
+    N_theta = 300
 
 # --- Солвер (SOR) ---
 SOR_W       = 1.5
