@@ -194,28 +194,6 @@ fig.savefig("plots/fig_P3D_T2_thrust.png", dpi=300)
 plt.close(fig)
 print("  -> fig_P3D_T2_thrust.png")
 
-# --- Карта кавитации: гладкий ---
-fig, ax = plt.subplots(figsize=(8, 6))
-cav_smooth = (P_smooth < 1e-3).astype(float)
-ax.pcolormesh(Theta_deg, R_mm, cav_smooth, cmap='Blues', shading='auto')
-ax.set_xlabel('θ, °')
-ax.set_ylabel('r, мм')
-plt.tight_layout()
-fig.savefig("plots/fig_cav_smooth_thrust.png", dpi=300)
-plt.close(fig)
-print("  -> fig_cav_smooth_thrust.png")
-
-# --- Карта кавитации: T2 ---
-fig, ax = plt.subplots(figsize=(8, 6))
-cav_T2 = (P_T2 < 1e-3).astype(float)
-ax.pcolormesh(Theta_deg, R_mm, cav_T2, cmap='Blues', shading='auto')
-ax.set_xlabel('θ, °')
-ax.set_ylabel('r, мм')
-plt.tight_layout()
-fig.savefig("plots/fig_cav_T2_thrust.png", dpi=300)
-plt.close(fig)
-print("  -> fig_cav_T2_thrust.png")
-
 # --- Sweep графики ---
 def plot_sweep(ylabel, key, fname, scale=1.0):
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -235,7 +213,6 @@ def plot_sweep(ylabel, key, fname, scale=1.0):
 plot_sweep('W, кН',      'W',     'fig_W_vs_K.png',     scale=1e-3)
 plot_sweep('f_T',        'f_T',   'fig_fT_vs_K.png',    scale=1.0)
 plot_sweep('Q, мл/с',   'Q',     'fig_Q_vs_K.png',     scale=1e6)
-plot_sweep('h_min, мкм', 'h_min', 'fig_hmin_vs_K.png',  scale=1e6)
 plot_sweep('p_max, МПа', 'p_max', 'fig_pmax_vs_K.png',  scale=1e-6)
 
 # --- Bar-chart коэффициентов улучшения ---
