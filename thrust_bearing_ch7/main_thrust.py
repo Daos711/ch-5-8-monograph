@@ -194,6 +194,21 @@ fig.savefig("plots/fig_P3D_T2_thrust.png", dpi=300)
 plt.close(fig)
 print("  -> fig_P3D_T2_thrust.png")
 
+# --- Карта толщины плёнки: T2 ---
+H_T2 = results_nominal["T2"]["H"]
+fig, ax = plt.subplots(figsize=(8, 5))
+Theta_plot, R_plot = np.meshgrid(theta_deg, r_mm)
+im = ax.pcolormesh(Theta_plot, R_plot, H_T2 * 1e6,
+                   cmap='viridis', shading='auto')
+cb = fig.colorbar(im, ax=ax)
+cb.set_label('h, мкм')
+ax.set_xlabel('θ, °')
+ax.set_ylabel('r, мм')
+plt.tight_layout()
+fig.savefig('plots/fig_texture_map_T2.png', dpi=300)
+plt.close(fig)
+print("  -> fig_texture_map_T2.png")
+
 # --- Sweep графики ---
 def plot_sweep(ylabel, key, fname, scale=1.0):
     fig, ax = plt.subplots(figsize=(8, 5))
