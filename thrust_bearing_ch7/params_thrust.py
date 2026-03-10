@@ -33,7 +33,7 @@ else:
 SOR_W       = 1.5
 MAX_ITER    = 50000
 TOL         = 1e-5
-CHECK_EVERY = 500
+CHECK_EVERY = 50 if DRAFT else 500
 
 # --- Sweep ---
 K_values = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
