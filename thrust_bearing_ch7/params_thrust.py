@@ -46,19 +46,19 @@ K_values = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
 # N_r_tex, N_theta_tex — число лунок по r и θ
 TEXTURE_CONFIGS = {
     "T1": dict(
-        H_p=0.2, A_tex=0.060, B_tex=0.040,
+        H_p=0.2, A_tex=0.060, B_tex=0.025,
         r_start=R_in, r_end=R_out,
         theta_start_frac=0.1, theta_end_frac=0.7,
         N_r_tex=5, N_theta_tex=8,
     ),
     "T2": dict(
-        H_p=0.4, A_tex=0.060, B_tex=0.040,
+        H_p=0.4, A_tex=0.060, B_tex=0.025,
         r_start=R_in, r_end=R_out,
         theta_start_frac=0.1, theta_end_frac=0.7,
         N_r_tex=5, N_theta_tex=8,
     ),
     "T3": dict(
-        H_p=0.2, A_tex=0.060, B_tex=0.040,
+        H_p=0.2, A_tex=0.060, B_tex=0.025,
         r_start=R_in, r_end=R_out,
         theta_start_frac=0.3, theta_end_frac=0.9,
         N_r_tex=5, N_theta_tex=8,
