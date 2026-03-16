@@ -156,7 +156,7 @@ plt.close(fig)
 print("  -> fig_orbit_compare.png")
 
 # fig 7: фазовый портрет y vs x
-fig, ax = plt.subplots(figsize=(7, 7))
+fig, ax = plt.subplots(figsize=(7, 3.5))
 for variant in ["smooth", "T2"]:
     orb = orbits[variant]
     ax.plot(orb["x_total"] * 1e6, orb["y_total"] * 1e6,
