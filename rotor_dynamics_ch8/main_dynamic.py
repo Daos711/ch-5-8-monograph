@@ -84,8 +84,27 @@ for variant in ["smooth", "T2"]:
 # ============================================================
 print("\n=== Построение графиков ===")
 
-COLORS = {"smooth": "blue", "T2": "green"}
 LABELS = {"smooth": "Гладкий", "T2": "T2"}
+
+# Уникальный стиль для каждой комбинации (вариант, коэффициент)
+_STYLES = {
+    ("smooth", "Kxx"): dict(color="blue",    linestyle="-",  marker="o"),
+    ("smooth", "Kyy"): dict(color="blue",    linestyle="--", marker="s"),
+    ("smooth", "Kxy"): dict(color="blue",    linestyle="-",  marker="o"),
+    ("smooth", "Kyx"): dict(color="blue",    linestyle="--", marker="s"),
+    ("smooth", "Cxx"): dict(color="blue",    linestyle="-",  marker="o"),
+    ("smooth", "Cyy"): dict(color="blue",    linestyle="--", marker="s"),
+    ("smooth", "Cxy"): dict(color="blue",    linestyle="-",  marker="o"),
+    ("smooth", "Cyx"): dict(color="blue",    linestyle="--", marker="s"),
+    ("T2",     "Kxx"): dict(color="green",   linestyle="-",  marker="^"),
+    ("T2",     "Kyy"): dict(color="green",   linestyle="--", marker="D"),
+    ("T2",     "Kxy"): dict(color="green",   linestyle="-",  marker="^"),
+    ("T2",     "Kyx"): dict(color="green",   linestyle="--", marker="D"),
+    ("T2",     "Cxx"): dict(color="green",   linestyle="-",  marker="^"),
+    ("T2",     "Cyy"): dict(color="green",   linestyle="--", marker="D"),
+    ("T2",     "Cxy"): dict(color="green",   linestyle="-",  marker="^"),
+    ("T2",     "Cyx"): dict(color="green",   linestyle="--", marker="D"),
+}
 
 
 def plot_coeffs_vs_eps(keys, ylabel, fname):
@@ -94,9 +113,10 @@ def plot_coeffs_vs_eps(keys, ylabel, fname):
         eps_arr = results[variant]["eps"]
         for key in keys:
             vals = results[variant][key]
-            ls = '-' if 'xx' in key or 'yy' in key else '--'
-            ax.plot(eps_arr, vals, 'o' + ls,
-                    color=COLORS[variant],
+            st = _STYLES[(variant, key)]
+            ax.plot(eps_arr, vals,
+                    color=st["color"], linestyle=st["linestyle"],
+                    marker=st["marker"], markersize=5,
                     label=f"{LABELS[variant]} {key}")
     ax.set_xlabel('ε')
     ax.set_ylabel(ylabel)
@@ -124,7 +144,7 @@ plot_coeffs_vs_eps(["Cxy", "Cyx"], 'C, Н·с/м', 'fig_C_cross_vs_eps.png')
 fig, ax = plt.subplots(figsize=(8, 5))
 for variant in ["smooth", "T2"]:
     ax.plot(results[variant]["eps"], results[variant]["Re_max"],
-            'o-', color=COLORS[variant], label=LABELS[variant])
+            'o-', color=("blue" if variant == "smooth" else "green"), label=LABELS[variant])
 ax.axhline(y=0, color='black', linestyle='--', linewidth=0.8)
 ax.set_xlabel('ε')
 ax.set_ylabel('Re_max')
@@ -141,9 +161,9 @@ for variant in ["smooth", "T2"]:
     orb = orbits[variant]
     t_ms = orb["t"] * 1e3
     axes[0].plot(t_ms, orb["x_total"] * 1e6,
-                 color=COLORS[variant], label=LABELS[variant])
+                 color=("blue" if variant == "smooth" else "green"), label=LABELS[variant])
     axes[1].plot(t_ms, orb["y_total"] * 1e6,
-                 color=COLORS[variant], label=LABELS[variant])
+                 color=("blue" if variant == "smooth" else "green"), label=LABELS[variant])
 axes[0].set_ylabel('x, мкм')
 axes[1].set_ylabel('y, мкм')
 axes[1].set_xlabel('t, мс')
@@ -160,7 +180,7 @@ fig, ax = plt.subplots(figsize=(7, 3.5))
 for variant in ["smooth", "T2"]:
     orb = orbits[variant]
     ax.plot(orb["x_total"] * 1e6, orb["y_total"] * 1e6,
-            color=COLORS[variant], label=LABELS[variant], linewidth=0.7)
+            color=("blue" if variant == "smooth" else "green"), label=LABELS[variant], linewidth=0.7)
 ax.set_xlabel('x, мкм')
 ax.set_ylabel('y, мкм')
 ax.set_aspect('equal')
