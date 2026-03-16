@@ -1,4 +1,7 @@
+import sys
 import numpy as np
+
+DRAFT = "--draft" in sys.argv
 
 # --- Геометрия (те же что в главе 5) ---
 R   = 0.035       # м
@@ -18,22 +21,29 @@ pressure_scale = (6 * mu * U * R) / c**2
 load_scale     = pressure_scale * R * L / 2
 
 # --- Сетка ---
-N_phi = 360
-N_Z   = 120
+if DRAFT:
+    N_phi = 90
+    N_Z   = 30
+else:
+    N_phi = 360
+    N_Z   = 120
 # ВАЖНО: endpoint=False для периодической координаты φ
 
 # --- Солвер ---
 SOR_W       = 1.5
-MAX_ITER    = 30000
+MAX_ITER    = 30000 if not DRAFT else 5000
 TOL         = 1e-5
-CHECK_EVERY = 500
+CHECK_EVERY = 500 if not DRAFT else 100
 
 # --- Шаги конечных разностей ---
 dx = 0.005 * c    # по x и y (одинаковый)
 dv = 0.005 * U    # по xdot и ydot (одинаковый)
 
 # --- Sweep ---
-epsilon_values = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+if DRAFT:
+    epsilon_values = [0.2, 0.4, 0.6, 0.8]
+else:
+    epsilon_values = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 epsilon_orbit  = 0.6
 
 # --- Ротор ---
