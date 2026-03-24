@@ -3,6 +3,7 @@ import sys
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 
 from params_bit import (R, L, c, eta, omega_bit, R_bit, R_cone,
                         F_bit_radial, sigma_eq, TEXTURE_CONFIGS,
@@ -22,6 +23,16 @@ os.makedirs("plots", exist_ok=True)
 
 CACHE_PATH = "plots/cache.pkl"
 PLOT_ONLY = "--plot-only" in sys.argv
+
+
+def _apply_comma(ax, axes3d=False):
+    """Применить формат с запятой ко всем числовым осям."""
+    fmt = mticker.FuncFormatter(lambda x, _: f"{x:g}".replace(".", ","))
+    ax.xaxis.set_major_formatter(fmt)
+    ax.yaxis.set_major_formatter(fmt)
+    if axes3d and hasattr(ax, 'zaxis'):
+        ax.zaxis.set_major_formatter(
+            mticker.FuncFormatter(lambda x, _: f"{x:g}".replace(".", ",")))
 
 
 def save(fname):
@@ -272,6 +283,7 @@ for name, r in results.items():
     ax.plot(r["epsilon"], r["F"], mk, color=ls[0], markersize=10, zorder=5)
 ax.set_xlabel('ε')
 ax.set_ylabel('F, Н')
+_apply_comma(ax)
 ax.legend()
 ax.grid(True)
 plt.tight_layout()
@@ -299,6 +311,7 @@ if results:
     ax.set_xticklabels(names_plot)
     ax.set_ylabel('λ')
     ax.set_ylim(0, max(max(lam_vals) * 1.15, 3.5))
+    _apply_comma(ax)
     ax.grid(True, axis='y')
     plt.tight_layout()
     save('fig_lambda_comparison')
@@ -313,6 +326,7 @@ def plot_3d(P, fname):
     ax.set_xlabel('φ, рад')
     ax.set_ylabel('Z')
     ax.set_zlabel('P')
+    _apply_comma(ax, axes3d=True)
     plt.tight_layout()
     save(fname)
 
@@ -331,6 +345,7 @@ def plot_cav(P, fname):
     ax.pcolormesh(Phi_mesh, Z_mesh, cav, cmap='Blues', vmin=0, vmax=1)
     ax.set_xlabel('φ, рад')
     ax.set_ylabel('Z')
+    _apply_comma(ax)
     plt.tight_layout()
     save(fname)
 
@@ -348,6 +363,7 @@ if len(F_ext_B_kN) > 0:
                 linewidth=1.5, markersize=5, label=lbl)
     ax.set_xlabel('F_ext, кН')
     ax.set_ylabel('ε')
+    _apply_comma(ax)
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
@@ -363,6 +379,7 @@ if len(F_ext_B_kN) > 0:
     ax.axhline(3.0, color='green',  linewidth=0.8, linestyle='--', label='λ = 3')
     ax.set_xlabel('F_ext, кН')
     ax.set_ylabel('λ')
+    _apply_comma(ax)
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
@@ -376,6 +393,7 @@ if len(F_ext_B_kN) > 0:
                 linewidth=1.5, markersize=5, label=lbl)
     ax.set_xlabel('F_ext, кН')
     ax.set_ylabel('h_min, мкм')
+    _apply_comma(ax)
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
@@ -397,6 +415,7 @@ if gains_common:
     ax.set_xticks(x_g + width * 1.5)
     ax.set_xticklabels(g_names)
     ax.set_ylabel('G')
+    _apply_comma(ax)
     ax.legend()
     ax.grid(True, axis='y')
     plt.tight_layout()

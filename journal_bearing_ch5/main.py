@@ -1,6 +1,9 @@
 import os
+import sys
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 
 from params import *
 from geometry import phi_1D, Z_1D, d_phi, d_Z, Phi_mesh, Z_mesh, H_smooth, H_textured
@@ -10,87 +13,140 @@ from reynolds_solver.api import solve_reynolds
 
 os.makedirs("plots", exist_ok=True)
 
+CACHE_PATH = "plots/cache.pkl"
+PLOT_ONLY = "--plot-only" in sys.argv
+
+
+def _apply_comma(ax, axes3d=False):
+    """Применить формат с запятой ко всем числовым осям."""
+    fmt = mticker.FuncFormatter(lambda x, _: f"{x:g}".replace(".", ","))
+    ax.xaxis.set_major_formatter(fmt)
+    ax.yaxis.set_major_formatter(fmt)
+    if axes3d and hasattr(ax, 'zaxis'):
+        ax.zaxis.set_major_formatter(
+            mticker.FuncFormatter(lambda x, _: f"{x:g}".replace(".", ",")))
+
+
 def solve(H):
     return solve_reynolds(H, d_phi, d_Z, R, L,
                           omega=SOR_W,        # SOR relaxation, не угловая скорость
                           tol=TOL, max_iter=MAX_ITER, check_every=CHECK_EVERY)
 
-# ── 1. Эталон: гладкий при epsilon_nom ───────────────────────────────────────
-H_s = H_smooth(epsilon_nom)
-P_s, _, iter_s = solve(H_s)
-print(f"Гладкий: сошлось за {iter_s} итераций")
 
-F_s_nom      = compute_load(P_s, phi_1D, Z_1D)
-f_s_nom      = compute_friction(P_s, H_s, phi_1D, Z_1D, d_phi)
-mu_s_nom     = f_s_nom / F_s_nom
-Q_s_nom      = compute_Qout(P_s, H_s, phi_1D, Z_1D, d_Z)
-phi_s_nom    = compute_phi_load(P_s, phi_1D, Z_1D)
+# ═════════════════════════════════════════════════════════════════════════════
+#  РАСЧЁТНАЯ ЧАСТЬ  (пропускается при --plot-only)
+# ═════════════════════════════════════════════════════════════════════════════
 
-# ── 2. Три конфигурации при epsilon_nom ──────────────────────────────────────
-results_nom    = {}
-results_curves = {}
+if PLOT_ONLY:
+    if not os.path.exists(CACHE_PATH):
+        print("Ошибка: кэш не найден. Сначала запустите без --plot-only.")
+        sys.exit(1)
+    with open(CACHE_PATH, "rb") as f:
+        cache = pickle.load(f)
+    P_s           = cache["P_s"]
+    F_s_nom       = cache["F_s_nom"]
+    mu_s_nom      = cache["mu_s_nom"]
+    Q_s_nom       = cache["Q_s_nom"]
+    phi_s_nom     = cache["phi_s_nom"]
+    results_nom   = cache["results_nom"]
+    results_curves = cache["results_curves"]
+    F_s_curves    = cache["F_s_curves"]
+    mu_s_curves   = cache["mu_s_curves"]
+    Q_s_curves    = cache["Q_s_curves"]
+    print(f"Кэш загружен из {CACHE_PATH}. Строю только графики...")
+else:
+    # ── 1. Эталон: гладкий при epsilon_nom ───────────────────────────────────────
+    H_s = H_smooth(epsilon_nom)
+    P_s, _, iter_s = solve(H_s)
+    print(f"Гладкий: сошлось за {iter_s} итераций")
 
-# Кривые гладкого
-F_s_curves, mu_s_curves, Q_s_curves = [], [], []
-for eps in epsilon_values:
-    H_s_e = H_smooth(eps)
-    P_s_e, _, _ = solve(H_s_e)
-    F_e  = compute_load(P_s_e, phi_1D, Z_1D)
-    f_e  = compute_friction(P_s_e, H_s_e, phi_1D, Z_1D, d_phi)
-    Q_e  = compute_Qout(P_s_e, H_s_e, phi_1D, Z_1D, d_Z)
-    F_s_curves.append(F_e); mu_s_curves.append(f_e/F_e); Q_s_curves.append(Q_e*1e6)
+    F_s_nom      = compute_load(P_s, phi_1D, Z_1D)
+    f_s_nom      = compute_friction(P_s, H_s, phi_1D, Z_1D, d_phi)
+    mu_s_nom     = f_s_nom / F_s_nom
+    Q_s_nom      = compute_Qout(P_s, H_s, phi_1D, Z_1D, d_Z)
+    phi_s_nom    = compute_phi_load(P_s, phi_1D, Z_1D)
 
-for name, cfg in TEXTURE_CONFIGS.items():
-    # --- при epsilon_nom ---
-    H_t = H_textured(epsilon_nom, cfg)
-    P_t, _, iter_t = solve(H_t)
-    print(f"{name}: сошлось за {iter_t} итераций")
+    # ── 2. Три конфигурации при epsilon_nom ──────────────────────────────────────
+    results_nom    = {}
+    results_curves = {}
 
-    F_t  = compute_load(P_t, phi_1D, Z_1D)
-    f_t  = compute_friction(P_t, H_t, phi_1D, Z_1D, d_phi)
-    mu_t = f_t / F_t
-    Q_t  = compute_Qout(P_t, H_t, phi_1D, Z_1D, d_Z)
-    phi_t = compute_phi_load(P_t, phi_1D, Z_1D)
-    gains = compute_gains(F_t, F_s_nom, mu_t, mu_s_nom, Q_t, Q_s_nom,
-                          H_t, epsilon_nom)
-    varphi = compute_coverage(cfg)
-
-    results_nom[name] = dict(F=F_t, mu=mu_t, Q=Q_t, phi_load=phi_t,
-                              gains=gains, varphi=varphi, P=P_t, H=H_t)
-
-    # --- кривые от ε ---
-    F_list, mu_list, Q_list = [], [], []
+    # Кривые гладкого
+    F_s_curves, mu_s_curves, Q_s_curves = [], [], []
     for eps in epsilon_values:
-        H_t_e = H_textured(eps, cfg)
-        P_t_e, _, _ = solve(H_t_e)
-        F_e  = compute_load(P_t_e, phi_1D, Z_1D)
-        f_e  = compute_friction(P_t_e, H_t_e, phi_1D, Z_1D, d_phi)
-        Q_e  = compute_Qout(P_t_e, H_t_e, phi_1D, Z_1D, d_Z)
-        F_list.append(F_e); mu_list.append(f_e/F_e); Q_list.append(Q_e*1e6)
-        print(f"  ε={eps:.2f}: F={F_e:.1f}N  μ={f_e/F_e:.5f}")
+        H_s_e = H_smooth(eps)
+        P_s_e, _, _ = solve(H_s_e)
+        F_e  = compute_load(P_s_e, phi_1D, Z_1D)
+        f_e  = compute_friction(P_s_e, H_s_e, phi_1D, Z_1D, d_phi)
+        Q_e  = compute_Qout(P_s_e, H_s_e, phi_1D, Z_1D, d_Z)
+        F_s_curves.append(F_e); mu_s_curves.append(f_e/F_e); Q_s_curves.append(Q_e*1e6)
 
-    results_curves[name] = dict(F=F_list, mu=mu_list, Q=Q_list)
+    for name, cfg in TEXTURE_CONFIGS.items():
+        # --- при epsilon_nom ---
+        H_t = H_textured(epsilon_nom, cfg)
+        P_t, _, iter_t = solve(H_t)
+        print(f"{name}: сошлось за {iter_t} итераций")
 
-# ── 3. Сводная таблица в терминал ────────────────────────────────────────────
-print(f"\n=== Таблица 5.2: параметры текстуры ===")
-print(f"{'':4s} {'H_p':>6} {'A_tex':>8} {'B_tex':>8} {'phi_start':>10} {'phi_end':>8} {'phi':>6}")
-for name, cfg in TEXTURE_CONFIGS.items():
-    v = results_nom[name]["varphi"]
-    print(f"{name:4s} {cfg['H_p']:>6.2f} {cfg['A_tex']:>8.4f} {cfg['B_tex']:>8.4f} "
-          f"{cfg['phi_start_deg']:>10d} {cfg['phi_end_deg']:>8d} {v:>6.3f}")
+        F_t  = compute_load(P_t, phi_1D, Z_1D)
+        f_t  = compute_friction(P_t, H_t, phi_1D, Z_1D, d_phi)
+        mu_t = f_t / F_t
+        Q_t  = compute_Qout(P_t, H_t, phi_1D, Z_1D, d_Z)
+        phi_t = compute_phi_load(P_t, phi_1D, Z_1D)
+        gains = compute_gains(F_t, F_s_nom, mu_t, mu_s_nom, Q_t, Q_s_nom,
+                              H_t, epsilon_nom)
+        varphi = compute_coverage(cfg)
 
-print(f"\n=== Таблица 5.3: результаты при ε = {epsilon_nom} ===")
-print(f"{'':12s} {'F, Н':>10} {'phi_load,°':>12} {'μ':>10} {'Q, мл/с':>10} "
-      f"{'G_F':>6} {'G_f':>6} {'G_Q':>6} {'G_h':>6}")
-print(f"{'Гладкий':12s} {F_s_nom:>10.1f} {phi_s_nom:>12.1f} {mu_s_nom:>10.5f} "
-      f"{Q_s_nom*1e6:>10.4f}  {'---':>5}  {'---':>5}  {'---':>5}  {'---':>5}")
-for name, res in results_nom.items():
-    g = res["gains"]
-    print(f"{name:12s} {res['F']:>10.1f} {res['phi_load']:>12.1f} {res['mu']:>10.5f} "
-          f"{res['Q']*1e6:>10.4f} {g['G_F']:>6.3f} {g['G_f']:>6.3f} "
-          f"{g['G_Q']:>6.3f} {g['G_h']:>6.3f}")
+        results_nom[name] = dict(F=F_t, mu=mu_t, Q=Q_t, phi_load=phi_t,
+                                  gains=gains, varphi=varphi, P=P_t, H=H_t)
 
-# ── 4. Графики ───────────────────────────────────────────────────────────────
+        # --- кривые от ε ---
+        F_list, mu_list, Q_list = [], [], []
+        for eps in epsilon_values:
+            H_t_e = H_textured(eps, cfg)
+            P_t_e, _, _ = solve(H_t_e)
+            F_e  = compute_load(P_t_e, phi_1D, Z_1D)
+            f_e  = compute_friction(P_t_e, H_t_e, phi_1D, Z_1D, d_phi)
+            Q_e  = compute_Qout(P_t_e, H_t_e, phi_1D, Z_1D, d_Z)
+            F_list.append(F_e); mu_list.append(f_e/F_e); Q_list.append(Q_e*1e6)
+            print(f"  ε={eps:.2f}: F={F_e:.1f}N  μ={f_e/F_e:.5f}")
+
+        results_curves[name] = dict(F=F_list, mu=mu_list, Q=Q_list)
+
+    # ── 3. Сводная таблица в терминал ────────────────────────────────────────────
+    print(f"\n=== Таблица 5.2: параметры текстуры ===")
+    print(f"{'':4s} {'H_p':>6} {'A_tex':>8} {'B_tex':>8} {'phi_start':>10} {'phi_end':>8} {'phi':>6}")
+    for name, cfg in TEXTURE_CONFIGS.items():
+        v = results_nom[name]["varphi"]
+        print(f"{name:4s} {cfg['H_p']:>6.2f} {cfg['A_tex']:>8.4f} {cfg['B_tex']:>8.4f} "
+              f"{cfg['phi_start_deg']:>10d} {cfg['phi_end_deg']:>8d} {v:>6.3f}")
+
+    print(f"\n=== Таблица 5.3: результаты при ε = {epsilon_nom} ===")
+    print(f"{'':12s} {'F, Н':>10} {'phi_load,°':>12} {'μ':>10} {'Q, мл/с':>10} "
+          f"{'G_F':>6} {'G_f':>6} {'G_Q':>6} {'G_h':>6}")
+    print(f"{'Гладкий':12s} {F_s_nom:>10.1f} {phi_s_nom:>12.1f} {mu_s_nom:>10.5f} "
+          f"{Q_s_nom*1e6:>10.4f}  {'---':>5}  {'---':>5}  {'---':>5}  {'---':>5}")
+    for name, res in results_nom.items():
+        g = res["gains"]
+        print(f"{name:12s} {res['F']:>10.1f} {res['phi_load']:>12.1f} {res['mu']:>10.5f} "
+              f"{res['Q']*1e6:>10.4f} {g['G_F']:>6.3f} {g['G_f']:>6.3f} "
+              f"{g['G_Q']:>6.3f} {g['G_h']:>6.3f}")
+
+    # ── Сохранение кэша ──
+    cache = dict(
+        P_s=P_s, F_s_nom=F_s_nom, mu_s_nom=mu_s_nom,
+        Q_s_nom=Q_s_nom, phi_s_nom=phi_s_nom,
+        results_nom=results_nom, results_curves=results_curves,
+        F_s_curves=F_s_curves, mu_s_curves=mu_s_curves,
+        Q_s_curves=Q_s_curves,
+    )
+    with open(CACHE_PATH, "wb") as f:
+        pickle.dump(cache, f)
+    print(f"\nКэш сохранён в {CACHE_PATH}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ГРАФИКИ  (всегда выполняется)
+# ═════════════════════════════════════════════════════════════════════════════
+
 STYLES = {
     "smooth": ("b-",  "o", "Гладкий"),
     "T1":     ("r--", "s", "T1"),
@@ -111,6 +167,7 @@ fig, ax = plt.subplots(figsize=(8, 5))
 ax.plot(phi_1D, P_s[Z_idx, :], 'b-',  linewidth=1.5, label='Гладкий')
 ax.plot(phi_1D, results_nom["T1"]["P"][Z_idx, :], 'r--', linewidth=1.5, label='T1')
 ax.set_xlabel('φ, рад'); ax.set_ylabel('P')
+_apply_comma(ax)
 ax.legend(); ax.grid(True); plt.tight_layout(); save('fig_P_phi_comparison')
 
 # Графики 3D полей давления
@@ -119,6 +176,7 @@ def plot_3d(P, fname):
     ax = fig.add_subplot(111, projection='3d')
     ax.plot_surface(Phi_mesh, Z_mesh, P, cmap='plasma', linewidth=0, antialiased=False)
     ax.set_xlabel('φ, рад'); ax.set_ylabel('Z'); ax.set_zlabel('P')
+    _apply_comma(ax, axes3d=True)
     plt.tight_layout(); save(fname)
 
 plot_3d(P_s, 'fig_P3D_smooth')
@@ -131,6 +189,7 @@ def plot_cav(P, fname):
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.pcolormesh(Phi_mesh, Z_mesh, cav, cmap='Blues', vmin=0, vmax=1)
     ax.set_xlabel('φ, рад'); ax.set_ylabel('Z')
+    _apply_comma(ax)
     plt.tight_layout(); save(fname)
 
 plot_cav(P_s, 'fig_cav_smooth')
@@ -151,6 +210,7 @@ for metric, ylabel, fname, s_data in [
         ax.plot(eps_arr, results_curves[name][metric], ls, marker=mk,
                 linewidth=1.5, markersize=5, label=lbl)
     ax.set_xlabel('ε'); ax.set_ylabel(ylabel)
+    _apply_comma(ax)
     ax.legend(); ax.grid(True); plt.tight_layout(); save(fname)
 
 # Сводный bar-chart показателей G при epsilon_nom
@@ -168,6 +228,7 @@ ax.axhline(1.0, color='k', linewidth=0.8, linestyle='--')
 ax.set_xticks(x + width * 1.5)
 ax.set_xticklabels(names)
 ax.set_ylabel('G')
+_apply_comma(ax)
 ax.legend(); ax.grid(True, axis='y'); plt.tight_layout(); save('fig_gains_nom')
 
 print("\nГотово. Графики сохранены в plots/")

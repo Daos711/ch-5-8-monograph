@@ -1,8 +1,11 @@
 import os
+import sys
+import pickle
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 from params_thrust import (
@@ -23,10 +26,25 @@ from postproc_thrust import (
 
 os.makedirs("plots", exist_ok=True)
 
+CACHE_PATH = "plots/cache.pkl"
+PLOT_ONLY = "--plot-only" in sys.argv
+
+
+def _apply_comma(ax, axes3d=False):
+    """Применить формат с запятой ко всем числовым осям."""
+    fmt = mticker.FuncFormatter(lambda x, _: f"{x:g}".replace(".", ","))
+    ax.xaxis.set_major_formatter(fmt)
+    ax.yaxis.set_major_formatter(fmt)
+    if axes3d and hasattr(ax, 'zaxis'):
+        ax.zaxis.set_major_formatter(
+            mticker.FuncFormatter(lambda x, _: f"{x:g}".replace(".", ",")))
+
+
 if DRAFT:
     print(f"*** DRAFT-режим: сетка {N_r}×{N_theta} (быстрая проверка) ***\n")
 else:
     print(f"*** FINAL-режим: сетка {N_r}×{N_theta} ***\n")
+
 
 # ============================================================
 # Вспомогательная функция
@@ -60,93 +78,89 @@ def full_postproc(P, H):
                 P=P, H=H)
 
 
-# ============================================================
-# Режим 1 — расчёт при K_nom
-# ============================================================
-print(f"=== Расчёт при K_nom = {K_nom} ===\n")
+# ═════════════════════════════════════════════════════════════════════════════
+#  РАСЧЁТНАЯ ЧАСТЬ  (пропускается при --plot-only)
+# ═════════════════════════════════════════════════════════════════════════════
 
-results_nominal = {}
+if PLOT_ONLY:
+    if not os.path.exists(CACHE_PATH):
+        print("Ошибка: кэш не найден. Сначала запустите без --plot-only.")
+        sys.exit(1)
+    with open(CACHE_PATH, "rb") as f:
+        cache = pickle.load(f)
+    results_nominal = cache["results_nominal"]
+    gains_nominal   = cache["gains_nominal"]
+    results_sweep   = cache["results_sweep"]
+    print(f"Кэш загружен из {CACHE_PATH}. Строю только графики...")
+else:
+    # ============================================================
+    # Режим 1 — расчёт при K_nom
+    # ============================================================
+    print(f"=== Расчёт при K_nom = {K_nom} ===\n")
 
-# Гладкий
-H = H_smooth(K_nom)
-P, conv, n_iter = solve_with_fallback(H)
-status = f"сошлось за {n_iter} итераций" if conv else "НЕ СОШЛОСЬ"
-print(f"  Гладкий: {status}")
-res = full_postproc(P, H)
-# Масштаб на полный подшипник
-res["W"]   *= N_pads
-res["M_f"] *= N_pads
-res["Q"]   *= N_pads
-results_nominal["smooth"] = res
+    results_nominal = {}
 
-# Текстурированные
-for tag, cfg in TEXTURE_CONFIGS.items():
-    H = H_textured(K_nom, cfg)
+    # Гладкий
+    H = H_smooth(K_nom)
     P, conv, n_iter = solve_with_fallback(H)
     status = f"сошлось за {n_iter} итераций" if conv else "НЕ СОШЛОСЬ"
-    print(f"  {tag}: {status}")
+    print(f"  Гладкий: {status}")
     res = full_postproc(P, H)
+    # Масштаб на полный подшипник
     res["W"]   *= N_pads
     res["M_f"] *= N_pads
     res["Q"]   *= N_pads
-    results_nominal[tag] = res
+    results_nominal["smooth"] = res
 
-# Таблица результатов
-print(f"\n=== Таблица: результаты при K_nom = {K_nom} (полный подшипник) ===")
-print(f"{'Вариант':<10} {'W, кН':>8} {'M_f, Н·м':>10} {'f_T':>8} "
-      f"{'Q, мл/с':>9} {'h_min, мкм':>11} {'p_max, МПа':>11}")
-for tag in ["smooth", "T1", "T2", "T3"]:
-    r = results_nominal[tag]
-    label = "Гладкий" if tag == "smooth" else tag
-    print(f"{label:<10} {r['W']/1e3:>8.2f} {r['M_f']:>10.4f} {r['f_T']:>8.5f} "
-          f"{r['Q']*1e6:>9.3f} {r['h_min']*1e6:>11.1f} {r['p_max']/1e6:>11.3f}")
+    # Текстурированные
+    for tag, cfg in TEXTURE_CONFIGS.items():
+        H = H_textured(K_nom, cfg)
+        P, conv, n_iter = solve_with_fallback(H)
+        status = f"сошлось за {n_iter} итераций" if conv else "НЕ СОШЛОСЬ"
+        print(f"  {tag}: {status}")
+        res = full_postproc(P, H)
+        res["W"]   *= N_pads
+        res["M_f"] *= N_pads
+        res["Q"]   *= N_pads
+        results_nominal[tag] = res
 
-# Коэффициенты улучшения
-print(f"\n=== Коэффициенты улучшения при K_nom = {K_nom} ===")
-print(f"{'Вариант':<10} {'G_W':>7} {'G_Mf':>7} {'G_fT':>7} "
-      f"{'G_Q':>7} {'G_hmin':>7} {'G_pmax':>7}")
-gains_nominal = {}
-for tag in ["T1", "T2", "T3"]:
-    g = compute_gains(results_nominal[tag], results_nominal["smooth"])
-    gains_nominal[tag] = g
-    print(f"{tag:<10} {g['G_W']:>7.4f} {g['G_Mf']:>7.4f} {g['G_fT']:>7.4f} "
-          f"{g['G_Q']:>7.4f} {g['G_hmin']:>7.4f} {g['G_pmax']:>7.4f}")
+    # Таблица результатов
+    print(f"\n=== Таблица: результаты при K_nom = {K_nom} (полный подшипник) ===")
+    print(f"{'Вариант':<10} {'W, кН':>8} {'M_f, Н·м':>10} {'f_T':>8} "
+          f"{'Q, мл/с':>9} {'h_min, мкм':>11} {'p_max, МПа':>11}")
+    for tag in ["smooth", "T1", "T2", "T3"]:
+        r = results_nominal[tag]
+        label = "Гладкий" if tag == "smooth" else tag
+        print(f"{label:<10} {r['W']/1e3:>8.2f} {r['M_f']:>10.4f} {r['f_T']:>8.5f} "
+              f"{r['Q']*1e6:>9.3f} {r['h_min']*1e6:>11.1f} {r['p_max']/1e6:>11.3f}")
 
-# ============================================================
-# Режим 2 — sweep по K_values
-# ============================================================
-print(f"\n=== Sweep по K = {K_values} ===\n")
+    # Коэффициенты улучшения
+    print(f"\n=== Коэффициенты улучшения при K_nom = {K_nom} ===")
+    print(f"{'Вариант':<10} {'G_W':>7} {'G_Mf':>7} {'G_fT':>7} "
+          f"{'G_Q':>7} {'G_hmin':>7} {'G_pmax':>7}")
+    gains_nominal = {}
+    for tag in ["T1", "T2", "T3"]:
+        g = compute_gains(results_nominal[tag], results_nominal["smooth"])
+        gains_nominal[tag] = g
+        print(f"{tag:<10} {g['G_W']:>7.4f} {g['G_Mf']:>7.4f} {g['G_fT']:>7.4f} "
+              f"{g['G_Q']:>7.4f} {g['G_hmin']:>7.4f} {g['G_pmax']:>7.4f}")
 
-results_sweep = {}
+    # ============================================================
+    # Режим 2 — sweep по K_values
+    # ============================================================
+    print(f"\n=== Sweep по K = {K_values} ===\n")
 
-# Гладкий sweep
-sw = {k: [] for k in ["K", "W", "f_T", "Q", "h_min", "p_max"]}
-P_prev = None
-for K in K_values:
-    H = H_smooth(K)
-    P, conv, n_iter = solve_with_fallback(H, P_init=P_prev)
-    P_prev = P.copy()
-    status = f"сошлось за {n_iter}" if conv else "НЕ СОШЛОСЬ"
-    print(f"  Гладкий K={K}: {status}")
-    r = full_postproc(P, H)
-    sw["K"].append(K)
-    sw["W"].append(r["W"] * N_pads)
-    sw["f_T"].append(r["f_T"])
-    sw["Q"].append(r["Q"] * N_pads)
-    sw["h_min"].append(r["h_min"])
-    sw["p_max"].append(r["p_max"])
-results_sweep["smooth"] = sw
+    results_sweep = {}
 
-# Текстурированные sweep
-for tag, cfg in TEXTURE_CONFIGS.items():
+    # Гладкий sweep
     sw = {k: [] for k in ["K", "W", "f_T", "Q", "h_min", "p_max"]}
     P_prev = None
     for K in K_values:
-        H = H_textured(K, cfg)
+        H = H_smooth(K)
         P, conv, n_iter = solve_with_fallback(H, P_init=P_prev)
         P_prev = P.copy()
         status = f"сошлось за {n_iter}" if conv else "НЕ СОШЛОСЬ"
-        print(f"  {tag} K={K}: {status}")
+        print(f"  Гладкий K={K}: {status}")
         r = full_postproc(P, H)
         sw["K"].append(K)
         sw["W"].append(r["W"] * N_pads)
@@ -154,11 +168,41 @@ for tag, cfg in TEXTURE_CONFIGS.items():
         sw["Q"].append(r["Q"] * N_pads)
         sw["h_min"].append(r["h_min"])
         sw["p_max"].append(r["p_max"])
-    results_sweep[tag] = sw
+    results_sweep["smooth"] = sw
 
-# ============================================================
-# Графики
-# ============================================================
+    # Текстурированные sweep
+    for tag, cfg in TEXTURE_CONFIGS.items():
+        sw = {k: [] for k in ["K", "W", "f_T", "Q", "h_min", "p_max"]}
+        P_prev = None
+        for K in K_values:
+            H = H_textured(K, cfg)
+            P, conv, n_iter = solve_with_fallback(H, P_init=P_prev)
+            P_prev = P.copy()
+            status = f"сошлось за {n_iter}" if conv else "НЕ СОШЛОСЬ"
+            print(f"  {tag} K={K}: {status}")
+            r = full_postproc(P, H)
+            sw["K"].append(K)
+            sw["W"].append(r["W"] * N_pads)
+            sw["f_T"].append(r["f_T"])
+            sw["Q"].append(r["Q"] * N_pads)
+            sw["h_min"].append(r["h_min"])
+            sw["p_max"].append(r["p_max"])
+        results_sweep[tag] = sw
+
+    # ── Сохранение кэша ──
+    cache = dict(
+        results_nominal=results_nominal,
+        gains_nominal=gains_nominal,
+        results_sweep=results_sweep,
+    )
+    with open(CACHE_PATH, "wb") as f:
+        pickle.dump(cache, f)
+    print(f"\nКэш сохранён в {CACHE_PATH}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ГРАФИКИ  (всегда выполняется)
+# ═════════════════════════════════════════════════════════════════════════════
 print("\n=== Построение графиков ===")
 
 COLORS = {"smooth": "blue", "T1": "red", "T2": "green", "T3": "purple"}
@@ -176,6 +220,7 @@ ax.plot_surface(R_mm, Theta_deg, P_smooth / 1e6, cmap='plasma')
 ax.set_xlabel('r, мм')
 ax.set_ylabel('θ, °')
 ax.set_zlabel('p, МПа')
+_apply_comma(ax, axes3d=True)
 plt.tight_layout()
 fig.savefig("plots/fig_P3D_smooth_thrust.png", dpi=300)
 plt.close(fig)
@@ -189,6 +234,7 @@ ax.plot_surface(R_mm, Theta_deg, P_T2 / 1e6, cmap='plasma')
 ax.set_xlabel('r, мм')
 ax.set_ylabel('θ, °')
 ax.set_zlabel('p, МПа')
+_apply_comma(ax, axes3d=True)
 plt.tight_layout()
 fig.savefig("plots/fig_P3D_T2_thrust.png", dpi=300)
 plt.close(fig)
@@ -204,6 +250,7 @@ cb = fig.colorbar(im, ax=ax)
 cb.set_label('h, мкм')
 ax.set_xlabel('θ, °')
 ax.set_ylabel('r, мм')
+_apply_comma(ax)
 plt.tight_layout()
 fig.savefig('plots/fig_texture_map_T2.png', dpi=300)
 plt.close(fig)
@@ -218,6 +265,7 @@ def plot_sweep(ylabel, key, fname, scale=1.0):
         ax.plot(sw["K"], vals, 'o-', color=COLORS[tag], label=LABELS[tag])
     ax.set_xlabel('K')
     ax.set_ylabel(ylabel)
+    _apply_comma(ax)
     ax.legend()
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -242,6 +290,7 @@ ax.axhline(y=1.0, color='black', linestyle='--', linewidth=0.8)
 ax.set_xticks(x + width)
 ax.set_xticklabels(gain_names)
 ax.set_ylabel('G')
+_apply_comma(ax)
 ax.legend()
 ax.grid(True, axis='y', alpha=0.3)
 plt.tight_layout()
