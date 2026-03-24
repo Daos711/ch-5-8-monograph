@@ -222,9 +222,9 @@ ax.set_ylabel('θ, °')
 ax.set_zlabel('p, МПа')
 _apply_comma(ax, axes3d=True)
 plt.tight_layout()
-fig.savefig("plots/fig_P3D_smooth_thrust.png", dpi=300)
+fig.savefig("plots/fig_7_8.png", dpi=300)
 plt.close(fig)
-print("  -> fig_P3D_smooth_thrust.png")
+print("  -> fig_7_8.png")
 
 # --- 3D поле p: T2 ---
 fig = plt.figure(figsize=(10, 7))
@@ -236,9 +236,9 @@ ax.set_ylabel('θ, °')
 ax.set_zlabel('p, МПа')
 _apply_comma(ax, axes3d=True)
 plt.tight_layout()
-fig.savefig("plots/fig_P3D_T2_thrust.png", dpi=300)
+fig.savefig("plots/fig_7_9.png", dpi=300)
 plt.close(fig)
-print("  -> fig_P3D_T2_thrust.png")
+print("  -> fig_7_9.png")
 
 # --- Карта толщины плёнки: T2 ---
 H_T2 = results_nominal["T2"]["H"]
@@ -252,9 +252,9 @@ ax.set_xlabel('θ, °')
 ax.set_ylabel('r, мм')
 _apply_comma(ax)
 plt.tight_layout()
-fig.savefig('plots/fig_texture_map_T2.png', dpi=300)
+fig.savefig('plots/fig_7_2.png', dpi=300)
 plt.close(fig)
-print("  -> fig_texture_map_T2.png")
+print("  -> fig_7_2.png")
 
 # --- Sweep графики ---
 def plot_sweep(ylabel, key, fname, scale=1.0):
@@ -273,10 +273,10 @@ def plot_sweep(ylabel, key, fname, scale=1.0):
     plt.close(fig)
     print(f"  -> {fname}")
 
-plot_sweep('W, кН',      'W',     'fig_W_vs_K.png',     scale=1e-3)
-plot_sweep('f_T',        'f_T',   'fig_fT_vs_K.png',    scale=1.0)
-plot_sweep('Q, мл/с',   'Q',     'fig_Q_vs_K.png',     scale=1e6)
-plot_sweep('p_max, МПа', 'p_max', 'fig_pmax_vs_K.png',  scale=1e-6)
+plot_sweep('W, кН',      'W',     'fig_7_4.png',     scale=1e-3)
+plot_sweep('f_T',        'f_T',   'fig_7_5.png',    scale=1.0)
+plot_sweep('Q, мл/с',   'Q',     'fig_7_6.png',     scale=1e6)
+plot_sweep('p_max, МПа', 'p_max', 'fig_7_7.png',  scale=1e-6)
 
 # --- Bar-chart коэффициентов улучшения ---
 fig, ax = plt.subplots(figsize=(10, 6))
@@ -294,8 +294,8 @@ _apply_comma(ax)
 ax.legend()
 ax.grid(True, axis='y', alpha=0.3)
 plt.tight_layout()
-fig.savefig("plots/fig_gains_K_nom.png", dpi=300)
+fig.savefig("plots/fig_7_3.png", dpi=300)
 plt.close(fig)
-print("  -> fig_gains_K_nom.png")
+print("  -> fig_7_3.png")
 
 print("\nГотово.")

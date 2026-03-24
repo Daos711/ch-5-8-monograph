@@ -168,7 +168,7 @@ ax.plot(phi_1D, P_s[Z_idx, :], 'b-',  linewidth=1.5, label='Гладкий')
 ax.plot(phi_1D, results_nom["T1"]["P"][Z_idx, :], 'r--', linewidth=1.5, label='T1')
 ax.set_xlabel('φ, рад'); ax.set_ylabel('P')
 _apply_comma(ax)
-ax.legend(); ax.grid(True); plt.tight_layout(); save('fig_P_phi_comparison')
+ax.legend(); ax.grid(True); plt.tight_layout(); save('fig_5_14')
 
 # Графики 3D полей давления
 def plot_3d(P, fname):
@@ -179,9 +179,10 @@ def plot_3d(P, fname):
     _apply_comma(ax, axes3d=True)
     plt.tight_layout(); save(fname)
 
-plot_3d(P_s, 'fig_P3D_smooth')
+plot_3d(P_s, 'fig_5_3')
+P3D_NAMES = {"T1": "fig_5_9", "T2": "fig_5_10", "T3": "fig_5_12"}
 for name in TEXTURE_CONFIGS:
-    plot_3d(results_nom[name]["P"], f'fig_P3D_{name}')
+    plot_3d(results_nom[name]["P"], P3D_NAMES[name])
 
 # Карты кавитации: cav_mask = (P <= 0)
 def plot_cav(P, fname):
@@ -192,15 +193,16 @@ def plot_cav(P, fname):
     _apply_comma(ax)
     plt.tight_layout(); save(fname)
 
-plot_cav(P_s, 'fig_cav_smooth')
+plot_cav(P_s, 'fig_5_4')
+CAV_NAMES = {"T1": "fig_5_8", "T2": "fig_5_11", "T3": "fig_5_13"}
 for name in TEXTURE_CONFIGS:
-    plot_cav(results_nom[name]["P"], f'fig_cav_{name}')
+    plot_cav(results_nom[name]["P"], CAV_NAMES[name])
 
 # Кривые F(ε), μ(ε), Q(ε)
 for metric, ylabel, fname, s_data in [
-    ("F",  "F, Н",   "fig_F_vs_epsilon",  F_s_curves),
-    ("mu", "μ",      "fig_mu_vs_epsilon",  mu_s_curves),
-    ("Q",  "Q, мл/с","fig_Q_vs_epsilon",   Q_s_curves),
+    ("F",  "F, Н",   "fig_5_5",  F_s_curves),
+    ("mu", "μ",      "fig_5_6",  mu_s_curves),
+    ("Q",  "Q, мл/с","fig_5_7",   Q_s_curves),
 ]:
     fig, ax = plt.subplots(figsize=(7, 5))
     ls, mk, lbl = STYLES["smooth"]
@@ -229,6 +231,6 @@ ax.set_xticks(x + width * 1.5)
 ax.set_xticklabels(names)
 ax.set_ylabel('G')
 _apply_comma(ax)
-ax.legend(); ax.grid(True, axis='y'); plt.tight_layout(); save('fig_gains_nom')
+ax.legend(); ax.grid(True, axis='y'); plt.tight_layout(); save('fig_5_15')
 
 print("\nГотово. Графики сохранены в plots/")

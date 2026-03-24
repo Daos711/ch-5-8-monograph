@@ -287,7 +287,7 @@ _apply_comma(ax)
 ax.legend()
 ax.grid(True)
 plt.tight_layout()
-save('fig_operating_points')
+save('fig_6_2')
 
 # --- fig_lambda_comparison ---
 if results:
@@ -314,7 +314,7 @@ if results:
     _apply_comma(ax)
     ax.grid(True, axis='y')
     plt.tight_layout()
-    save('fig_lambda_comparison')
+    save('fig_6_3')
 
 # --- 3D поля давления ---
 
@@ -334,7 +334,7 @@ def plot_3d(P, fname):
 if "Гладкий" in results:
     plot_3d(results["Гладкий"]["P"], 'fig_P3D_smooth_bit')
 if "T2" in results:
-    plot_3d(results["T2"]["P"], 'fig_P3D_T2_bit')
+    plot_3d(results["T2"]["P"], 'fig_6_7')
 
 # --- Карты кавитации ---
 
@@ -367,7 +367,7 @@ if len(F_ext_B_kN) > 0:
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
-    save('fig_sweep_B_epsilon')
+    save('fig_6_4')
 
     # fig_sweep_B_lambda
     fig, ax = plt.subplots(figsize=(7, 5))
@@ -383,7 +383,7 @@ if len(F_ext_B_kN) > 0:
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
-    save('fig_sweep_B_lambda')
+    save('fig_6_5')
 
     # fig_sweep_B_hmin
     fig, ax = plt.subplots(figsize=(7, 5))
@@ -397,7 +397,7 @@ if len(F_ext_B_kN) > 0:
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
-    save('fig_sweep_B_hmin')
+    save('fig_6_6')
 
 # --- fig_gains_common ---
 if gains_common:
@@ -419,6 +419,6 @@ if gains_common:
     ax.legend()
     ax.grid(True, axis='y')
     plt.tight_layout()
-    save('fig_gains_common')
+    save('fig_6_8')
 
 print("\nГотово. Графики сохранены в plots/")

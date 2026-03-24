@@ -167,16 +167,16 @@ def plot_coeffs_vs_eps(keys, ylabel, fname):
 
 
 # fig 1: Kxx, Kyy vs eps
-plot_coeffs_vs_eps(["Kxx", "Kyy"], 'K, Н/м', 'fig_K_direct_vs_eps.png')
+plot_coeffs_vs_eps(["Kxx", "Kyy"], 'K, Н/м', 'fig_8_1.png')
 
 # fig 2: Kxy, Kyx vs eps
-plot_coeffs_vs_eps(["Kxy", "Kyx"], 'K, Н/м', 'fig_K_cross_vs_eps.png')
+plot_coeffs_vs_eps(["Kxy", "Kyx"], 'K, Н/м', 'fig_8_2.png')
 
 # fig 3: Cxx, Cyy vs eps
-plot_coeffs_vs_eps(["Cxx", "Cyy"], 'C, Н·с/м', 'fig_C_direct_vs_eps.png')
+plot_coeffs_vs_eps(["Cxx", "Cyy"], 'C, Н·с/м', 'fig_8_3.png')
 
 # fig 4: Cxy, Cyx vs eps
-plot_coeffs_vs_eps(["Cxy", "Cyx"], 'C, Н·с/м', 'fig_C_cross_vs_eps.png')
+plot_coeffs_vs_eps(["Cxy", "Cyx"], 'C, Н·с/м', 'fig_8_3a.png')
 
 # fig 5: Re_max vs eps
 fig, ax = plt.subplots(figsize=(8, 5))
@@ -190,9 +190,9 @@ _apply_comma(ax)
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-fig.savefig("plots/fig_Re_max_vs_eps.png", dpi=300)
+fig.savefig("plots/fig_8_4.png", dpi=300)
 plt.close(fig)
-print("  -> fig_Re_max_vs_eps.png")
+print("  -> fig_8_4.png")
 
 # fig 6: orbit x(t), y(t)
 fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
@@ -211,9 +211,9 @@ for ax in axes:
     ax.legend()
     ax.grid(True, alpha=0.3)
 plt.tight_layout()
-fig.savefig("plots/fig_orbit_compare.png", dpi=300)
+fig.savefig("plots/fig_8_5.png", dpi=300)
 plt.close(fig)
-print("  -> fig_orbit_compare.png")
+print("  -> fig_8_5.png")
 
 # fig 7: фазовый портрет y vs x
 fig, ax = plt.subplots(figsize=(7, 3.5))
@@ -228,8 +228,8 @@ ax.set_aspect('equal')
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-fig.savefig("plots/fig_orbit_xy.png", dpi=300)
+fig.savefig("plots/fig_8_6.png", dpi=300)
 plt.close(fig)
-print("  -> fig_orbit_xy.png")
+print("  -> fig_8_6.png")
 
 print("\nГотово.")
